@@ -7,9 +7,9 @@ struct Color_t
 {
     Color_t (const int r = 255, const int gr = 255, const int bl = 255) : red (r), green (gr), blue (bl) {}
 
-    size_t red;
-    size_t green;
-    size_t blue;
+    int red   = 255;
+    int green = 255;
+    int blue  = 255;
 
     bool operator== (const Color_t& other)
     {
@@ -19,6 +19,11 @@ struct Color_t
     bool operator!= (const Color_t& other)
     {
         return !(*this == other);
+    }
+
+    void Print ()
+    {
+        printf ("Red = [%d], Green = [%d], Blue = [%d]\n", red, green, blue);
     }
 
     ~Color_t() = default;
@@ -40,3 +45,20 @@ struct Coord_t
 
     ~Coord_t() = default;
 };
+
+//-----------------------------------------------------------------------------
+
+namespace ns_colors
+{
+    Color_t C_black   ( 0,   0,   0   );
+    Color_t C_blue    ( 0,   0,   128 );
+    Color_t C_green   ( 0,   128, 0   );
+    Color_t C_cyan    ( 0,   128, 128 );
+    Color_t C_red     ( 128, 0,   0   );
+    Color_t C_magenta ( 128, 0,   128 );
+    Color_t C_brown   ( 128, 128, 0   );
+    Color_t C_orange  ( 255, 128, 0   );
+    Color_t C_gray    ( 160, 160, 160 );
+    Color_t C_yellow  ( 255, 255, 128 );
+    Color_t C_white   ( 255, 255, 255 );
+}

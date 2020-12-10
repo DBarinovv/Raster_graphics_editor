@@ -26,7 +26,7 @@ public:
 class ClBrush : public ClAbstractTool
 {
 private:
-    Color_t color = TX_BLACK;
+    Color_t color = ns_colors::C_black;
     int width = 5;
     bool is_clicked = false;
     Coord_t last_coords;
@@ -36,6 +36,8 @@ public:
 
     virtual void Draw (const Coord_t& coords)
     {
+        SetColor (color);
+
         for (int i = 0; i < width; i++)
         {
             for (int k = 0; k < width; k++)
@@ -134,18 +136,139 @@ public:
         return width;
     }
 
-    void SetClicked ()
+    virtual void SetClicked ()
     {
         is_clicked = true;
     }
 
-    void SetNoClicked ()
+    virtual void SetNoClicked ()
     {
         is_clicked = false;
     }
-
-
 };
+
+class ClEraser : public ClAbstractTool
+{
+private:
+    Color_t color = ns_colors::C_white;
+    int width = 5;
+    bool is_clicked = false;
+    Coord_t last_coords;
+
+public:
+    ClEraser () : ClAbstractTool () {}
+
+    virtual void Draw (const Coord_t& coords)
+    {
+        SetColor (color);
+
+        for (int i = 0; i < width; i++)
+        {
+            for (int k = 0; k < width; k++)
+            {
+                txSetPixel (coords.x + i - width / 2, coords.y + k - width / 2, RGB (color.red, color.green, color.blue));
+            }
+        }
+
+        Coord_t p1, p2, p3, p4;
+
+
+        int prev_width = width;
+
+        if (is_clicked)
+        {
+            width /= 2;
+
+            if (last_coords.y > coords.y)
+            {
+                if (last_coords.x > coords.x)
+                {
+                    p1 = {     coords.x - width,      coords.y + width};
+                    p2 = {     coords.x + width,      coords.y - width};
+
+                    p3 = {last_coords.x + width, last_coords.y - width};
+                    p4 = {last_coords.x - width, last_coords.y + width};
+
+                }
+                else
+                {
+                    p1 = {     coords.x - width,      coords.y - width};
+                    p2 = {     coords.x + width,      coords.y + width};
+
+                    p3 = {last_coords.x + width, last_coords.y + width};
+                    p4 = {last_coords.x - width, last_coords.y - width};
+
+                }
+            }
+            else
+            {
+                if (last_coords.x > coords.x)
+                {
+                    p1 = {     coords.x - width,      coords.y - width};
+                    p2 = {     coords.x + width,      coords.y + width};
+
+                    p3 = {last_coords.x + width, last_coords.y + width};
+                    p4 = {last_coords.x - width, last_coords.y - width};
+
+                }
+                else
+                {
+                    p1 = {     coords.x - width,      coords.y + width};
+                    p2 = {     coords.x + width,      coords.y - width};
+
+                    p3 = {last_coords.x + width, last_coords.y - width};
+                    p4 = {last_coords.x - width, last_coords.y + width};
+
+                }
+            }
+
+            POINT arr[4] = {p1, p2, p3, p4};
+
+            width = prev_width;
+
+            txPolygon (arr, 4);
+        }
+
+        last_coords = coords;
+        is_clicked = true;
+    }
+
+    virtual void SetColor (const Color_t& new_color)
+    {
+        color = new_color;
+
+        txSetFillColor (RGB (color.red, color.green, color.blue));
+        txSetColor     (RGB (color.red, color.green, color.blue));
+    }
+
+    virtual Color_t GetColor ()
+    {
+        return color;
+    }
+
+    virtual void SetSize (const int& new_size)
+    {
+        width = new_size;
+
+        Clamp (width, ns_global_vars::C_min_width, ns_global_vars::C_max_width);
+    }
+
+    virtual int GetSize ()
+    {
+        return width;
+    }
+
+    virtual void SetClicked ()
+    {
+        is_clicked = true;
+    }
+
+    virtual void SetNoClicked ()
+    {
+        is_clicked = false;
+    }
+};
+
 
 
 class ClDrawingFrame
@@ -269,10 +392,15 @@ private:
 
 public:
 
-    ClApplication (const ClDrawingFrame&& frame) : frame (frame) {}
+    ClApplication (const ClDrawingFrame&& old_frame) : frame (old_frame) {}
 
     void Start_Program ()
     {
+        ClEraser er;
+        ClAbstractTool& a_tool = er;
+        ClDrawingFrame frame2(&a_tool);
+        frame2.GetTool()->SetColor (ns_colors::C_white);
+
         int is_clicked = 0;
         while (!txGetAsyncKeyState (VK_ESCAPE))
         {
@@ -286,14 +414,20 @@ public:
                 {
                     frame.MouseClick (coords);
                 }
+                else if (is_clicked & 2)
+                {
+                    frame2.MouseClick (coords);
+                }
                 else
                 {
-                    frame.GetTool()->SetNoClicked ();
+                    frame. GetTool()->SetNoClicked ();
+                    frame2.GetTool()->SetNoClicked ();
                 }
             }
             else
             {
-                frame.GetTool()->SetNoClicked ();
+                frame. GetTool()->SetNoClicked ();
+                frame2.GetTool()->SetNoClicked ();
             }
 
             if (txGetAsyncKeyState (VK_UP))
@@ -331,7 +465,7 @@ int main ()
     ClAbstractTool& a_tool = brush;
     ClDrawingFrame frame(&a_tool);
 
-    frame.GetTool()->SetColor (TX_BLUE);
+    frame.GetTool()->SetColor (ns_colors::C_black);
 
     ClApplication appl(std::move (frame));
     appl.Start_Program ();

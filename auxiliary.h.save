@@ -7,9 +7,9 @@ struct Color_t
 {
     Color_t (const int r = 255, const int gr = 255, const int bl = 255) : red (r), green (gr), blue (bl) {}
 
-    size_t red;
-    size_t green;
-    size_t blue;
+    int red   = 255;
+    int green = 255;
+    int blue  = 255;
 
     bool operator== (const Color_t& other)
     {
@@ -21,6 +21,11 @@ struct Color_t
         return !(*this == other);
     }
 
+    void Print ()
+    {
+        printf ("Red = [%d], Green = [%d], Blue = [%d]\n", red, green, blue);
+    }
+
     ~Color_t() = default;
 };
 
@@ -30,11 +35,33 @@ struct Coord_t
 {
     Coord_t (const int x = 0, const int y = 0) : x (x), y (y) {}
     Coord_t (POINT point) : x (point.x), y (point.y) {}
-    
-    Coord_t (const Coord_t& other) = default;
+    operator POINT () { return {x, y}; }
+
+    Coord_t            (const Coord_t& other) = default;
+    Coord_t& operator= (const Coord_t& other) = default;
 
     int x;
     int y;
 
     ~Coord_t() = default;
 };
+
+//-----------------------------------------------------------------------------
+
+namespace ns_colors
+{
+    enum colors
+    {
+        E_black   = { 0,   0,   0 },
+        E_blue    = { 0,   0,   128 },
+        E_green   = { 0,   128, 0 },
+        E_cyan    = { 0,   128, 128 },
+        E_red     = { 128, 0,   0 },
+        E_magenta = { 128, 0,   128 },
+        E_brown   = { 128, 128, 0 },
+        E_orange  = { 255, 128, 0 },
+        E_gray    = { 160, 160, 160 },
+        E_yellow  = { 255, 255, 128 },
+        E_white   = { 255, 255, 255 },
+    }
+}

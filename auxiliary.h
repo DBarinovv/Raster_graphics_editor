@@ -40,8 +40,13 @@ struct Coord_t
     Coord_t            (const Coord_t& other) = default;
     Coord_t& operator= (const Coord_t& other) = default;
 
-    int x;
-    int y;
+    int x = 0;
+    int y = 0;
+
+    void Print (std::string str = "") const
+    {
+        printf ("%s: x coord = [%d], y coord = [%d]\n", str.c_str(), x, y);
+    }
 
     ~Coord_t() = default;
 };

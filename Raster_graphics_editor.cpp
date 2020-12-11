@@ -276,15 +276,16 @@ class ClDrawingFrame
 private:
     bool is_clicked = false;
     ClAbstractTool *tool;
-    ClViewport view;
     Coord_t left_up;
     Coord_t right_down;
     Coord_t last_coords;
 
+    ClViewport view;
+
 
 public:
-    ClDrawingFrame (ClAbstractTool *tool = nullptr) : left_up    {0,                             ns_global_vars::C_max_y_coord / 8},
-                                                      right_down {ns_global_vars::C_max_x_coord, ns_global_vars::C_max_y_coord},
+    ClDrawingFrame (ClAbstractTool *tool = nullptr) : left_up    (0,                             ns_global_vars::C_max_y_coord / 8),
+                                                      right_down (ns_global_vars::C_max_x_coord, ns_global_vars::C_max_y_coord),
                                                       view (left_up, right_down), tool (tool)
     {
         COLORREF prev_color = txGetFillColor ();
@@ -294,6 +295,8 @@ public:
 
         txSetFillColor (prev_color);
     }
+
+    ~ClDrawingFrame () = default;
 
     void MouseClick (const Coord_t& coords)
     {
@@ -312,7 +315,9 @@ public:
 
     void Draw (const Coord_t& coords)
     {
+        view.Make_Region ();
         tool->Draw (coords);
+        view.Remove_Region ();
     }
 
     void SetClicked ()
@@ -329,6 +334,11 @@ public:
         tool->SetNoClicked ();
     }
 
+    bool Coord_In (const Coord_t coords)
+    {
+        return coords.x <= right_down.x && coords.x >= left_up.x &&
+               coords.y <= right_down.y && coords.y >= left_up.y;
+    }
 };
 
 class ClAbstractWindow
@@ -344,16 +354,15 @@ public:
     ClAbstractWindow& operator=(const ClAbstractWindow&) = default;
     ClAbstractWindow& operator=(ClAbstractWindow&&)      = default;
 
-    virtual bool Draw ()                           { PR_LOG }
-    virtual bool MouseOver  (const Coord_t coords) { PR_LOG }
-    virtual bool MouseOut   () { PR_LOG }
-    virtual bool MouseClick (const Coord_t coords, const ClAbstractWindow *last_window) { PR_LOG }
-    virtual bool Coord_In   (const Coord_t coords) { PR_LOG }
-
-//    void Print () { printf ("%p\n", this); }
+    virtual bool Draw ()                             { PR_LOG }
+    virtual bool MouseOver  ()                       { PR_LOG }
+    virtual bool MouseOut   ()                       { PR_LOG }
+    virtual bool MouseClick ()                       { PR_LOG }
+    virtual bool Coord_In (const Coord_t coords)     { PR_LOG }
+    virtual void SetNoFocused ()                     { PR_LOG }
 };
 
-class ClRectButton
+class ClRectButton : public ClAbstractWindow
 {
 private:
 
@@ -363,9 +372,16 @@ private:
 
 public:
     ClRectButton (const Coord_t lu = {}, const Coord_t rd = {}) :
-                    left_up (lu), right_down (rd) {}
+                  ClAbstractWindow (lu, rd), left_up (lu), right_down (rd) {}
 
-    virtual bool Coord_In (const Coord_t& coords) { PR_LOG }
+    virtual ~ClRectButton () = default;
+
+    virtual bool Draw ()                             { PR_LOG }
+    virtual bool MouseOver  ()                       { PR_LOG }
+    virtual bool MouseOut   ()                       { PR_LOG }
+    virtual bool MouseClick ()                       { PR_LOG }
+    virtual bool Coord_In (const Coord_t coords)     { PR_LOG }
+    virtual void SetNoFocused ()                     { PR_LOG }
 };
 
 
@@ -381,7 +397,115 @@ public:
     ClToolRectButton (const Coord_t lu = {}, const Coord_t rd = {}) :
                     ClRectButton (lu, rd), left_up (lu), right_down (rd) {}
 
-    virtual bool Coord_In (const Coord_t& coords) { PR_LOG }
+    virtual ~ClToolRectButton () = default;
+
+    virtual bool Draw ()                             { PR_LOG }
+    virtual bool MouseOver  ()                       { PR_LOG }
+    virtual bool MouseOut   ()                       { PR_LOG }
+    virtual bool MouseClick ()                       { PR_LOG }
+    virtual bool Coord_In (const Coord_t coords)     { PR_LOG }
+    virtual void SetNoFocused ()                     { PR_LOG }
+};
+
+class ClTextureToolRectButton : public ClToolRectButton
+{
+private:
+    ClAbstractTool *tool;
+
+    Coord_t left_up;
+    Coord_t right_down;
+    HDC texture;
+    HDC texture_over;
+    HDC texture_now;
+    std::string path;
+
+    bool is_focused = false;
+
+public:
+    ClTextureToolRectButton (const Coord_t lu = {}, const Coord_t rd = {}, const std::string& image = "") :
+                        ClToolRectButton (lu, rd), left_up (lu), right_down (rd), path ("Resources\\Images\\")
+    {
+        path += image;
+        path += ".bmp";
+        texture = NOtxLoadImage (path.c_str(), IMAGE_BITMAP, LR_LOADFROMFILE,
+                                                                            right_down.x - left_up.x,
+                                                                            right_down.y - left_up.y);
+
+        texture_now = texture;
+
+        path = "Resources\\Images\\";
+        path += image;
+        path += "Over.bmp";
+
+        texture_over = NOtxLoadImage (path.c_str(), IMAGE_BITMAP, LR_LOADFROMFILE,
+                                                                            right_down.x - left_up.x,
+                                                                            right_down.y - left_up.y);
+
+
+        if (!texture_over)
+        {
+            texture_over = texture;
+
+            printf ("WAS, path = [%s]\n", path.c_str());
+        }
+
+        if (!texture)
+        {
+            std::string out = "Не могу загрузить картинку(\nPath = ";
+            out += path;
+
+            txMessageBox (out.c_str(), "Да, я скопировал это из примера");
+        }
+    }
+
+    virtual ~ClTextureToolRectButton ()
+    {
+        txDeleteDC (texture);
+        txDeleteDC (texture_over);
+        txDeleteDC (texture_now);
+    };
+
+
+    virtual bool Draw ()
+    {
+        txBitBlt (txDC(), left_up.x, left_up.y, right_down.x, right_down.y, texture_now, 0, 0);
+    }
+
+    virtual bool MouseOver ()
+    {
+        texture_now = texture_over;
+//        Draw ();
+    }
+
+    virtual bool MouseOut ()
+    {
+        if (!is_focused)
+        {
+            texture_now = texture;
+
+            is_focused = false;
+        }
+    }
+
+    virtual bool MouseClick ()
+    {
+        texture_now = texture_over;
+
+        is_focused = true;
+    }
+
+    virtual bool Coord_In (const Coord_t coords)
+    {
+        return coords.x <= right_down.x && coords.x >= left_up.x &&
+               coords.y <= right_down.y && coords.y >= left_up.y;
+    }
+
+    virtual void SetNoFocused ()
+    {
+        is_focused = false;
+
+        texture_now = texture;
+    }
 };
 
 class ClApplication
@@ -392,36 +516,89 @@ private:
 
 public:
 
-    ClApplication (const ClDrawingFrame&& old_frame) : frame (old_frame) {}
+    ClApplication (const ClDrawingFrame& old_frame) : frame (old_frame) {}
+
+    void Add_Window (ClAbstractWindow *new_window)
+    {
+        arr_of_windows.push_back (new_window);
+    }
+
+    void Draw_All ()
+    {
+        for (auto& window : arr_of_windows)
+        {
+            window->Draw ();
+        }
+    }
 
     void Start_Program ()
     {
+        ns_global_vars::main_region = Win32::CreateRectRgn (0, 0, ns_global_vars::C_max_x_coord, ns_global_vars::C_max_y_coord);
+
         ClEraser er;
         ClAbstractTool& a_tool = er;
         ClDrawingFrame frame2(&a_tool);
         frame2.GetTool()->SetColor (ns_colors::C_white);
 
+        ClAbstractWindow *last_window_over    = arr_of_windows[0];
+        ClAbstractWindow *last_window_clicked = arr_of_windows[0];
+
         int is_clicked = 0;
         while (!txGetAsyncKeyState (VK_ESCAPE))
         {
-            Coord_t coords = txMousePos();
+            Draw_All ();
+
+            Coord_t coords = txMousePos ();
 
             is_clicked = txMouseButtons ();
 
-            if (is_clicked != 3)
+            for (int i = arr_of_windows.size() - 1; i >= 0; i--)
             {
-                if (is_clicked & 1)
+                if (arr_of_windows[i]->Coord_In (coords))
                 {
-                    frame.MouseClick (coords);
+                    arr_of_windows[i]->MouseOver ();
+
+                    if (arr_of_windows[i] != last_window_over)
+                    {
+                        last_window_over->MouseOut ();
+                        last_window_over = arr_of_windows[i];
+                    }
+
+                    break;
                 }
-                else if (is_clicked & 2)
+            }
+
+            if (is_clicked != 0)
+            {
+                if (frame.Coord_In (coords))
                 {
-                    frame2.MouseClick (coords);
+                    if (is_clicked & 1)
+                    {
+                        frame.MouseClick (coords);
+                    }
+                    else if (is_clicked & 2)
+                    {
+                        frame2.MouseClick (coords);
+                    }
+                    else
+                    {
+                        frame. GetTool()->SetNoClicked ();
+                        frame2.GetTool()->SetNoClicked ();
+                    }
                 }
                 else
                 {
-                    frame. GetTool()->SetNoClicked ();
-                    frame2.GetTool()->SetNoClicked ();
+                    for (int i = arr_of_windows.size() - 1; i >= 0; i--)
+                    {
+                        if (arr_of_windows[i]->Coord_In (coords))
+                        {
+                            last_window_clicked->SetNoFocused ();
+                            arr_of_windows[i]->MouseClick ();
+                            last_window_clicked = arr_of_windows[i];
+
+                            break;
+                        }
+                    }
                 }
             }
             else
@@ -434,16 +611,23 @@ public:
             {
                 int size = frame.GetTool()->GetSize ();
                 frame.GetTool()->SetSize (size * 2);
+                frame2.GetTool()->SetSize (size * 2);
                 txSleep (100);
             }
             else if (txGetAsyncKeyState (VK_DOWN))
             {
                 int size = frame.GetTool()->GetSize ();
                 frame.GetTool()->SetSize (size / 2);
+                frame2.GetTool()->SetSize (size / 2);
                 txSleep (100);
             }
         }
     }
+};
+
+class Manager
+{
+
 };
 
 //=============================================================================
@@ -458,6 +642,7 @@ int main ()
     // application
     // make buttons
     // make textures
+    // manager (is_clicked, width, ...)
 
     Create_Background ();
 
@@ -467,7 +652,18 @@ int main ()
 
     frame.GetTool()->SetColor (ns_colors::C_black);
 
-    ClApplication appl(std::move (frame));
+    ClTextureToolRectButton but ({15,  15}, {100, 100}, "Brush");
+    ClAbstractWindow& but_in = but;
+    ClTextureToolRectButton but2({115, 15}, {200, 100}, "Eraser");
+    ClAbstractWindow& but_in2 = but2;
+
+
+    ClApplication appl(frame);
+
+    appl.Add_Window (new ClAbstractWindow({0, 0}, {ns_global_vars::C_max_x_coord, ns_global_vars::C_max_y_coord}));
+    appl.Add_Window (&but_in);
+    appl.Add_Window (&but_in2);
+
     appl.Start_Program ();
 
 

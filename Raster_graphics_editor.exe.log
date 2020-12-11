@@ -1,0 +1,35 @@
+
+--------------------------------------------------
+TXLib сообщает:
+
+Программа: D:\Cpp\Raster_graphics_editor\Raster_graphics_editor.exe, файл: D:\TX\TxLib.h, строка: 13097, функция: bool {anonymous}::TX::txBitBlt(HDC, double, double, double, double, HDC, double, double, unsigned int),
+
+Сообщение: Параметр "sourceImage" неверен. Возможно, этот холст не создан, или уже уничтожен, или не загрузилась картинка.
+
+#1: TXLib [Ver: 00173a, Rev: 168, Date: 2020-08-13 00:46:05 +0400], Instance: 0x0044439C (32-bit), Flags: CMdRe0, Thread: 0x4440 (Main), GetLastError(): 13 (Недопустимые данные). 
+
+--------------------------------------------------
+Стек вызовов:
+
+# 0 0x00416C2C in D:\Cpp\Raster_graphics_editor\Raster_graphics_editor.exe: (anonymous namespace)::TX::txBitBlt()
+# 1 0x00422A3F in D:\Cpp\Raster_graphics_editor\Raster_graphics_editor.exe: ClTextureToolRectButton::Draw()
+# 2 0x004220FD in D:\Cpp\Raster_graphics_editor\Raster_graphics_editor.exe: ClApplication::Draw_All()
+# 3 0x00421C20 in D:\Cpp\Raster_graphics_editor\Raster_graphics_editor.exe: ClApplication::Start_Program()
+# 4 0x0041D0D2 in D:\Cpp\Raster_graphics_editor\Raster_graphics_editor.exe: main()
+
+--------------------------------------------------
+Developed with:
+
+The Dumb Artist Library (TX Library)
+TXLib [Ver: 00173a, Rev: 168, Date: 2020-08-13 00:46:05 +0400]
+Copyright (C) Ded (Ilya Dedinsky, http://txlib.ru) <mail@txlib.ru>
+See license on: http://txlib.ru
+
+TXLib file:	D:\TX\TxLib.h
+Compiled:	Dec 12 2020 01:17:03, GNU g++ 4.8.5, std=201103L, MinGW Runtime 3.11, 32-bit, Debug
+Started:	Dec 12 2020 01:17:06
+
+Run file:	D:\Cpp\Raster_graphics_editor\Raster_graphics_editor.exe
+Directory:	D:\Cpp\Raster_graphics_editor
+
+--------------------------------------------------

@@ -275,7 +275,7 @@ class ClDrawingFrame
 {
 private:
     bool is_clicked = false;
-    ClAbstractTool *tool;
+    ClAbstractTool *tool = nullptr;
     Coord_t left_up;
     Coord_t right_down;
     Coord_t last_coords;
@@ -315,6 +315,8 @@ public:
 
     void Draw (const Coord_t& coords)
     {
+        if (!tool) return;
+
         view.Make_Region ();
         tool->Draw (coords);
         view.Remove_Region ();
@@ -322,6 +324,8 @@ public:
 
     void SetClicked ()
     {
+        if (!tool) return;
+
         is_clicked = true;
 
         tool->SetClicked ();
@@ -329,6 +333,8 @@ public:
 
     void SetNoClicked ()
     {
+        if (!tool) return;
+
         is_clicked = false;
 
         tool->SetNoClicked ();
@@ -358,7 +364,7 @@ public:
     virtual bool MouseOver  ()                       { PR_LOG }
     virtual bool MouseOut   ()                       { PR_LOG }
     virtual bool MouseClick ()                       { PR_LOG }
-    virtual bool Coord_In (const Coord_t coords)     { PR_LOG }
+    virtual bool Coord_In (const Coord_t coords)     { PR_LOG return false; }
     virtual void SetNoFocused ()                     { PR_LOG }
     virtual ClAbstractTool *GetTool ()               { PR_LOG }
 };
@@ -531,11 +537,74 @@ public:
         arr_of_windows.push_back (new_window);
     }
 
-    void Draw_All ()
+    void Draw ()
     {
         for (auto& window : arr_of_windows)
         {
             window->Draw ();
+        }
+    }
+
+    void Mouse_Over_Out (const Coord_t coords, ClAbstractWindow **last_window_over)
+    {
+        for (int i = arr_of_windows.size() - 1; i >= 0; i--)
+        {
+            if (arr_of_windows[i]->Coord_In (coords))
+            {
+                arr_of_windows[i]->MouseOver ();
+
+                if (arr_of_windows[i] != (*last_window_over))
+                {
+                    (*last_window_over)->MouseOut ();
+                    (*last_window_over) = arr_of_windows[i];
+                }
+
+                break;
+            }
+
+            if (i == 0)
+            {
+                (*last_window_over)->MouseOut ();
+                (*last_window_over) = arr_of_windows[i];
+            }
+        }
+    }
+
+    void Mouse_Click (const Coord_t coords, int *is_clicked, ClAbstractWindow **last_window_clicked)
+    {
+        if (*is_clicked != 0)
+        {
+            if (frame.Coord_In (coords))
+            {
+                if (*is_clicked & 1)
+                {
+                    frame.MouseClick (coords);
+                }
+            }
+            else
+            {
+                for (int i = arr_of_windows.size() - 1; i >= 0; i--)
+                {
+                    if (arr_of_windows[i]->Coord_In (coords))
+                    {
+                        (*last_window_clicked)->SetNoFocused ();
+                        arr_of_windows[i]->MouseClick ();
+
+                        if (arr_of_windows[i]->GetTool ())
+                        {
+                            frame.SetTool (arr_of_windows[i]->GetTool ());
+                        }
+
+                        (*last_window_clicked) = arr_of_windows[i];
+
+                        break;
+                    }
+                }
+            }
+        }
+        else
+        {
+            frame.GetTool()->SetNoClicked ();
         }
     }
 
@@ -544,71 +613,21 @@ public:
         ns_global_vars::main_region = Win32::CreateRectRgn (0, 0, ns_global_vars::C_max_x_coord, ns_global_vars::C_max_y_coord);
 
         ClAbstractWindow *last_window_over    = arr_of_windows[0];
-        ClAbstractWindow *last_window_clicked = arr_of_windows[0];
+        ClAbstractWindow *last_window_clicked = arr_of_windows[1];
+        last_window_clicked->MouseClick ();
 
         int is_clicked = 0;
         while (!txGetAsyncKeyState (VK_ESCAPE))
         {
-            Draw_All ();
+            Draw ();
 
             Coord_t coords = txMousePos ();
 
             is_clicked = txMouseButtons ();
 
-            for (int i = arr_of_windows.size() - 1; i >= 0; i--)
-            {
-                if (arr_of_windows[i]->Coord_In (coords))
-                {
-                    arr_of_windows[i]->MouseOver ();
+            Mouse_Over_Out (coords, &last_window_over);
 
-                    if (arr_of_windows[i] != last_window_over)
-                    {
-                        last_window_over->MouseOut ();
-                        last_window_over = arr_of_windows[i];
-                    }
-
-                    break;
-                }
-            }
-
-            if (is_clicked != 0)
-            {
-                if (frame.Coord_In (coords))
-                {
-                    if (is_clicked & 1)
-                    {
-                        frame.MouseClick (coords);
-                    }
-                    else
-                    {
-                        frame.GetTool()->SetNoClicked ();
-                    }
-                }
-                else
-                {
-                    for (int i = arr_of_windows.size() - 1; i >= 0; i--)
-                    {
-                        if (arr_of_windows[i]->Coord_In (coords))
-                        {
-                            last_window_clicked->SetNoFocused ();
-                            arr_of_windows[i]->MouseClick ();
-
-                            if (arr_of_windows[i]->GetTool ())
-                            {
-                                frame.SetTool (arr_of_windows[i]->GetTool ());
-                            }
-
-                            last_window_clicked = arr_of_windows[i];
-
-                            break;
-                        }
-                    }
-                }
-            }
-            else
-            {
-                frame. GetTool()->SetNoClicked ();
-            }
+            Mouse_Click (coords, &is_clicked, &last_window_clicked);
 
             if (txGetAsyncKeyState (VK_UP))
             {
@@ -624,11 +643,6 @@ public:
             }
         }
     }
-};
-
-class Manager
-{
-
 };
 
 //=============================================================================
@@ -656,7 +670,7 @@ int main ()
 
     frame.GetTool()->SetColor (ns_colors::C_black);
 
-    ClTextureToolRectButton but ({15,  15}, {100, 100}, "Brush", &brush_tool);
+    ClTextureToolRectButton but ({15,  15}, {100, 100}, "Brush",  &brush_tool);
     ClAbstractWindow& but_in = but;
     ClTextureToolRectButton but2({115, 15}, {200, 100}, "Eraser", &eraser_tool);
     ClAbstractWindow& but_in2 = but2;
